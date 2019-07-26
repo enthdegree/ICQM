@@ -1,5 +1,5 @@
-# ICQM
-## Integer Convex Quadratic Minimization
+# icqm
+Integer Convex Quadratic Minimization
 
     %% icqm Integer Convex Quadratic Minimizer                                                       
     % Find a solution to the following problem:                                                      
