@@ -1,5 +1,5 @@
-function [v_opt, d_opt] = ICQM(mtx_M, v_v, d_cc)
-%% ICQM Integer Convex Quadratic Minimizer 
+function [v_opt, d_opt] = icqm(mtx_M, v_v, d_cc)
+%% icqm Integer Convex Quadratic Minimizer 
 % Find a solution to the following problem:
 % 
 % minimize:      x'*mtx_M*x + 2*v_v'*x + d_cc
