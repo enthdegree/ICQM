@@ -1,7 +1,7 @@
 # ICQM
 ## Integer Convex Quadratic Minimization
 
-    %% ICQM Integer Convex Quadratic Minimizer                                                       
+    %% icqm Integer Convex Quadratic Minimizer                                                       
     % Find a solution to the following problem:                                                      
     %                                                                                                
     % minimize:      x'*mtx_M*x + 2*v_v'*x + d_cc                                                    
