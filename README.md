@@ -15,7 +15,7 @@ Integer Convex Quadratic Minimization
     % GHASEMMEHDI AND AGRELL: FASTER RECURSIONS IN SPHERE DECODING.
     %                                                                                                
     % Inputs:                                                                                        
-    %    mtx_M = K*K real positive-semidefinite matrix                                               
+    %    mtx_M = K*K real positive-definite matrix                                               
     %    v_v = K*1 real vector                                                                       
     %    d_cc = real scalar                                                                          
     %                                                                                                
