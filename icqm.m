@@ -37,25 +37,29 @@ function [v_opt, d_opt] = ICQM(mtx_M, v_v, d_cc)
 	d_C = inf;
 	n_i = n_dim+1;
 	v_d = n_dim*ones(n_dim,1);
-	v_lambda = zeros(n_dim+1,1);
+	v_lambda = nan(n_dim+1,1);
+    v_lambda(n_dim+1) = 0;
 
-	mtx_F = zeros(n_dim,n_dim);
+	mtx_F = nan(n_dim,n_dim);
 	mtx_F(n_dim,:) = v_r;
 
 	% Extra globals needed 
-	n_m = 0;
-	v_p = zeros(n_dim,1);
-	v_u = zeros(n_dim,1);
-	v_Delta = zeros(n_dim,1);
+	n_m = nan;
+	v_p = nan(n_dim,1);
+	v_u = nan(n_dim,1);
+	v_hatu = nan(n_dim,1);
+	v_Delta = nan(n_dim,1);
 
 	while(1)
 	if(strcmp(STATE,'LOOP')) % LOOP
 		if(n_i ~= 1)
 			n_i = n_i-1;
 			v_idx_j = v_d(n_i):(-1):(n_i+1);
-			mtx_F(v_idx_j-1,n_i) = ... 
-				mtx_F(v_idx_j,n_i) - ...
-				v_u(v_idx_j).*mtx_G(v_idx_j,n_i);
+            for jj=v_idx_j
+                mtx_F(jj-1,n_i) = ... 
+                    mtx_F(jj,n_i) - ...
+                    v_u(jj)*mtx_G(jj,n_i);
+            end
 			v_p(n_i) = mtx_F(n_i,n_i)/mtx_G(n_i,n_i);
 			v_u(n_i) = round(v_p(n_i));
 			d_y = (v_p(n_i)-v_u(n_i))*mtx_G(n_i,n_i);
@@ -64,42 +68,40 @@ function [v_opt, d_opt] = ICQM(mtx_M, v_v, d_cc)
 		else
 			v_hatu = v_u;
 			d_C = v_lambda(1);
-		end
-		if( ~(v_lambda(n_i) < d_C) )
-			STATE = 'POSTLOOP';	
-			break;
-		end
-	elseif(strcmp(STATE,'RETURN')) % "Return v_hatu and exit"
-		break;	
-	elseif(strcmp(STATE,'POSTLOOP')) % Code after "LOOP"
-		n_m = n_i;	
-		while(1)
-			if(n_i == n_dim)
-				STATE = 'RETURN';
-				break;
-			else
-				n_i = n_i+1;
-				v_u(n_i) = v_u(n_i) + v_Delta(n_i);
-				v_Delta(n_i) = -v_Delta(n_i) - ICMQ_sign(v_Delta(n_i));
-				d_y = (v_p(n_i) - v_u(n_i))*mtx_G(n_i,n_i);
-				v_lambda(n_i) = v_lambda(n_i+1) + d_y^2;
-			end
-			if(~(v_lambda(n_i) >= d_C))
-				break;
-			end
-		end
-		v_idx_j = n_m:(i-1);
+        end
+        if( ~(v_lambda(n_i) < d_C) )
+			STATE = 'LOOP2';
+            n_m = n_i;	
+        end
+        
+	elseif(strcmp(STATE,'LOOP2')) % Code after "LOOP"
+        if(n_i == n_dim)
+            STATE = 'RETURN';
+        else
+            n_i = n_i+1;
+            v_u(n_i) = v_u(n_i) + v_Delta(n_i);
+            v_Delta(n_i) = -v_Delta(n_i) - ICMQ_sign(v_Delta(n_i));
+            d_y = (v_p(n_i) - v_u(n_i))*mtx_G(n_i,n_i);
+            v_lambda(n_i) = v_lambda(n_i+1) + d_y^2;
+        end
+        if(~(v_lambda(n_i) >= d_C))
+            STATE = 'POST_LOOP2';
+        end
+        
+    elseif(strcmp(STATE,'POST_LOOP2'))   
+		v_idx_j = n_m:(n_i-1);
 		v_d(v_idx_j) = n_i;
-		for(jj=(n_m-1):(-1):1) 
+		for jj=(n_m-1):(-1):1
 			if(v_d(jj) < n_i)
 				v_d(jj) = n_i;	
 			else
 				break;
 			end
-		end
-
-		STATE = 'LOOP';
-		break;
+        end
+        STATE = 'LOOP';
+        
+	elseif(strcmp(STATE,'RETURN')) % "Return v_hatu and exit"
+		break;	
 	end
 	end 
 
