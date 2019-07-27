@@ -1,5 +1,5 @@
-function [v_opt, d_opt] = icqm(mtx_M, v_v, d_cc)
-%% icqm Integer Convex Quadratic Minimizer 
+function [v_opt, d_opt] = ICQM(mtx_M, v_v, d_cc)
+%% ICQM Integer Convex Quadratic Minimizer 
 % Find a solution to the following problem:
 % 
 % minimize:      x'*mtx_M*x + 2*v_v'*x + d_cc
@@ -9,8 +9,8 @@ function [v_opt, d_opt] = icqm(mtx_M, v_v, d_cc)
 % for ordinary integer least squares to the described integer convex 
 % quadratic minimzation problem. 
 % 
-% Taken from Algorithm 2.1.1 `SEARCH' in:
-% Borno, Mazen Al. "Reduction in solving some integer least squares problems." arXiv preprint arXiv:1101.0382 (2011).
+% Taken from Algorithm 5, Figure 2 in:
+% GHASEMMEHDI AND AGRELL: FASTER RECURSIONS IN SPHERE DECODING.
 %
 % Inputs:
 %    mtx_M = K*K real positive-semidefinite matrix
@@ -26,83 +26,94 @@ function [v_opt, d_opt] = icqm(mtx_M, v_v, d_cc)
 	n_dim = size(mtx_M,1); 
 
 	% Stated problem is equivalent to instead minimizing:
-	% ||mtx_R*v_x - v_y||^2 + d_cc2
-	mtx_R = cholcov(mtx_M);
-	v_y = -pinv(mtx_R')*v_v;
-	%d_cc2 = d_cc - v_y'*v_y;
-	v_diag_R = diag(mtx_R);
+	% ||v_r - mtx_G*v_u||^2 + (some constant)
+	mtx_G = chol(mtx_M)';
+	v_r = -pinv(mtx_G')*v_v;
 
-	% Auxillary functions
-	% Equation (2.4)
-	fn_c = @(v_z, n_k) ( v_y(n_k) - ...
-		sum(mtx_R(n_k,(n_k+1):end)*v_z((n_k+1):end,1)) )/mtx_R(n_k,n_k);
-	% beta^2 formula
-	fn_beta2_partial = @(v_z, v_c, n_k) ...
-		sum( ( v_diag_R((n_k+1):end,1).* ...
-		(v_z((n_k+1):end,1)-v_c((n_k+1):end,1)) ).^2 );
-	
+%% Algorithm 5
 	% Globals
-	v_z = zeros(n_dim,1);
-	v_hatz = zeros(n_dim,1);
-	v_c = zeros(n_dim,1);
+	STATE = 'LOOP';
+
+	d_C = inf;
+	n_i = n_dim+1;
+	v_d = n_dim*ones(n_dim,1);
+	v_lambda = zeros(n_dim+1,1);
+
+	mtx_F = zeros(n_dim,n_dim);
+	mtx_F(n_dim,:) = v_r;
+
+	% Extra globals needed 
+	n_m = 0;
+	v_p = zeros(n_dim,1);
+	v_u = zeros(n_dim,1);
 	v_Delta = zeros(n_dim,1);
 
-%% Schnorr-Euchner
-	% Initialization
-	n_k = n_dim;
-	d_beta2 = inf;
-
-	STEP = 2;
-	while(STEP > 0)
-	if(STEP == 2)
-		v_c(n_k) = fn_c(v_z, n_k);
-		v_z(n_k) = round(v_c(n_k)); 
-		v_Delta(n_k) = sign(v_c(n_k)-v_z(n_k));
-
-		STEP = 3;
-		continue; 
-	elseif(STEP == 3) % Main step
-		d_A = mtx_R(n_k,n_k)^2*(v_z(n_k)-v_c(n_k))^2;
-		d_B = d_beta2 - fn_beta2_partial(v_z, v_c, n_k);
-		if(d_A > d_B)
-			STEP = 4;
-			continue;
-		elseif( n_k > 1 )
-			n_k = n_k-1;
-
-			STEP = 2; 
-			continue;
-		else % case n_k = 1;
-			STEP = 5;
-			continue;
-		end
-	elseif(STEP == 4) % Invalid point
-		if(n_k == n_dim)
-			STEP = -1;
-			continue;
+	while(1)
+	if(strcmp(STATE,'LOOP')) % LOOP
+		if(n_i ~= 1)
+			n_i = n_i-1;
+			v_idx_j = v_d(n_i):(-1):(n_i+1);
+			mtx_F(v_idx_j-1,n_i) = ... 
+				mtx_F(v_idx_j,n_i) - ...
+				v_u(v_idx_j).*mtx_G(v_idx_j,n_i);
+			v_p(n_i) = mtx_F(n_i,n_i)/mtx_G(n_i,n_i);
+			v_u(n_i) = round(v_p(n_i));
+			d_y = (v_p(n_i)-v_u(n_i))*mtx_G(n_i,n_i);
+			v_Delta(n_i) = ICMQ_sign(d_y);
+			v_lambda(n_i) = v_lambda(n_i+1) + d_y^2;
 		else
-			n_k = n_k+1;
-
-			STEP = 6;
-			continue;
+			v_hatu = v_u;
+			d_C = v_lambda(1);
 		end
-	elseif(STEP == 5) % Found valid point
-		v_hatz = v_z;
-		d_beta2 = fn_beta2_partial(v_hatz, v_c, n_dim);
-		n_k = n_k+1;
+		if( ~(v_lambda(n_i) < d_C) )
+			STATE = 'POSTLOOP';	
+			break;
+		end
+	elseif(strcmp(STATE,'RETURN')) % "Return v_hatu and exit"
+		break;	
+	elseif(strcmp(STATE,'POSTLOOP')) % Code after "LOOP"
+		n_m = n_i;	
+		while(1)
+			if(n_i == n_dim)
+				STATE = 'RETURN';
+				break;
+			else
+				n_i = n_i+1;
+				v_u(n_i) = v_u(n_i) + v_Delta(n_i);
+				v_Delta(n_i) = -v_Delta(n_i) - ICMQ_sign(v_Delta(n_i));
+				d_y = (v_p(n_i) - v_u(n_i))*mtx_G(n_i,n_i);
+				v_lambda(n_i) = v_lambda(n_i+1) + d_y^2;
+			end
+			if(~(v_lambda(n_i) >= d_C))
+				break;
+			end
+		end
+		v_idx_j = n_m:(i-1);
+		v_d(v_idx_j) = n_i;
+		for(jj=(n_m-1):(-1):1) 
+			if(v_d(jj) < n_i)
+				v_d(jj) = n_i;	
+			else
+				break;
+			end
+		end
 
-		STEP = 6;
-		continue;
-	elseif(STEP == 6) % Enumeration at level n_k
-		v_z(n_k) = v_z(n_k) + v_Delta(n_k);
-		v_Delta(n_k) = -v_Delta(n_k) - sign(v_Delta(n_k));
-
-		STEP = 3; 
-		continue;
+		STATE = 'LOOP';
+		break;
 	end
-	end
+	end 
 
-	v_opt = v_hatz;
+%% Translate
+	v_opt = v_hatu;
 	d_opt = v_opt'*mtx_M*v_opt + 2*v_v'*v_opt + d_cc;
+	return;
+end
+
+function s = ICMQ_sign(d)
+%% Corrected sign
+    s = sign(d);
+	if(s == 0)
+		s = -1;
+	end
 	return;
 end
