@@ -11,8 +11,8 @@ Integer Convex Quadratic Minimization
     % for ordinary integer least squares to the described integer convex                             
     % quadratic minimzation problem.                                                                 
     %                                                                                                
-    % Taken from Algorithm 2.1.1 `SEARCH' in:                                                        
-    % Borno, Mazen Al. "Reduction in solving some integer least squares problems." arXiv preprint arXiv:1101.0382 (2011).               
+    % Taken from Algorithm 5, Figure 2 in:
+    % GHASEMMEHDI AND AGRELL: FASTER RECURSIONS IN SPHERE DECODING.
     %                                                                                                
     % Inputs:                                                                                        
     %    mtx_M = K*K real positive-semidefinite matrix                                               
